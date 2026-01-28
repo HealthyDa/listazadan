@@ -290,6 +290,12 @@ const plan = [
   {id:"thu", hour:7, min:40},
   {id:"fri", hour:9, min:30}
 ];
+let notified = {mon:false, tue:false, wed:false, thu:false, fri:false};
+
+// poproś o pozwolenie na powiadomienia
+if ("Notification" in window) {
+    Notification.requestPermission();
+}
 function updateCountdowns(){
     const now = new Date();
     const todayNum = now.getDay();
@@ -300,22 +306,39 @@ function updateCountdowns(){
         const elem = document.getElementById(id);
         const countdown = elem.querySelector(".countdown");
         let next = new Date(now);
-        next.setHours(plan.find(p=>p.id===id).hour, plan.find(p=>p.id===id).min,0,0);
+        const planItem = plan.find(p=>p.id===id);
+        next.setHours(planItem.hour, planItem.min, 0, 0);
+
         const targetDayNum = parseInt(d);
         const diffDays = (targetDayNum - todayNum + 7) % 7;
         next.setDate(now.getDate() + diffDays);
         const diffMs = next - now;
         const diffMin = Math.floor(diffMs / 60000);
+
         elem.classList.remove("today","warning","late");
         if(todayNum === targetDayNum) elem.classList.add("today");
+
         if(diffMin > 0){
             const hours = Math.floor(diffMin/60);
             const minutes = diffMin % 60;
             countdown.textContent = `Za ${hours>0?hours+"h ":""}${minutes}min muszę wychodzić`;
             if(diffMin <= 10) elem.classList.add("warning");
-        } else { countdown.textContent = "Już powinieneś wyjść!"; elem.classList.add("late"); }
+        } else {
+            countdown.textContent = "Już powinieneś wyjść!";
+            elem.classList.add("late");
+
+            // powiadomienie push dokładnie przy wyjściu
+            if(!notified[id] && Notification.permission === "granted") {
+                new Notification("Czas wyjść!", {
+                    body: `Musisz wychodzić teraz (${elem.querySelector("strong").textContent})`,
+                    icon: "icons/icon-192x192.png"
+                });
+                notified[id] = true; // oznacz, że powiadomienie wysłane
+            }
+        }
     });
 }
+
 setInterval(updateCountdowns,1000);
 updateCountdowns();
 
@@ -433,6 +456,9 @@ function loadPlan(name){
   title.textContent = name === "aleks" ? "Plan lekcji Aleksa" : "Plan lekcji Leny";
   container.querySelectorAll(".lesson-day").forEach(d => d.remove());
   container.insertAdjacentHTML("beforeend", plans[name]);
+}
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
 }
 </script>
 </body>
